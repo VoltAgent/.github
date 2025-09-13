@@ -60,27 +60,47 @@ npm create voltagent-app@latest
 
 This command guides you through setup.
 
-You'll see the starter code in `src/index.ts` to get you started with the VoltAgent framework.
+You'll see the starter code in `src/index.ts`, which now registers both an agent and a comprehensive workflow example found in `src/workflows/index.ts`.
 
 ```typescript
-import { VoltAgent, Agent } from "@voltagent/core";
-import { VercelAIProvider } from "@voltagent/vercel-ai"; // Example provider
-import { openai } from "@ai-sdk/openai"; // Example model
+import { VoltAgent, Agent, Memory } from "@voltagent/core";
+import { LibSQLMemoryAdapter } from "@voltagent/libsql";
+import { createPinoLogger } from "@voltagent/logger";
+import { honoServer } from "@voltagent/server-hono";
+import { openai } from "@ai-sdk/openai";
+import { expenseApprovalWorkflow } from "./workflows";
+import { weatherTool } from "./tools";
 
-// Define a simple agent
-const agent = new Agent({
-  name: "my-agent",
-  description: "A helpful assistant that answers questions without using tools",
-  // Note: You can swap VercelAIProvider and openai with other supported providers/models
-  llm: new VercelAIProvider(),
-  model: openai("gpt-4o-mini"),
+// Create a logger instance
+const logger = createPinoLogger({
+  name: "my-agent-app",
+  level: "info",
 });
 
-// Initialize VoltAgent with your agent(s)
+// Optional persistent memory (remove to use default in-memory)
+const memory = new Memory({
+  storage: new LibSQLMemoryAdapter({ url: "file:./.voltagent/memory.db" }),
+});
+
+// A simple, general-purpose agent for the project.
+const agent = new Agent({
+  name: "my-agent",
+  instructions: "A helpful assistant that can check weather and help with various tasks",
+  model: openai("gpt-4o-mini"),
+  tools: [weatherTool],
+  memory,
+});
+
+// Initialize VoltAgent with your agent(s) and workflow(s)
 new VoltAgent({
   agents: {
     agent,
   },
+  workflows: {
+    expenseApprovalWorkflow,
+  },
+  server: honoServer(),
+  logger,
 });
 ```
 
@@ -90,10 +110,25 @@ Afterwards, navigate to your project and run:
 npm run dev
 ```
 
-Your agent is now running!
-To interact with it:
+When you run the dev command, tsx will compile and run your code. You should see the VoltAgent server startup message in your terminal:
 
-Click the [VoltAgent Console](https://console.voltagent.dev) link in your terminal output (or copy-paste it into your browser).
+```
+══════════════════════════════════════════════════
+VOLTAGENT SERVER STARTED SUCCESSFULLY
+══════════════════════════════════════════════════
+✓ HTTP Server: http://localhost:3141
+
+Test your agents with VoltOps Console: https://console.voltagent.dev
+══════════════════════════════════════════════════
+```
+
+Your agent is now running! To interact with it:
+
+1. Open the Console: Click the [VoltOps LLM Observability Platform](https://console.voltagent.dev) link in your terminal output (or copy-paste it into your browser).
+2. Find Your Agent: On the VoltOps LLM Observability Platform page, you should see your agent listed (e.g., "my-agent").
+3. Open Agent Details: Click on your agent's name.
+4. Start Chatting: On the agent detail page, click the chat icon in the bottom right corner to open the chat window.
+5. Send a Message: Type a message like "Hello" and press Enter.
 
 ![435419303-65a51ec9-62f1-4dea-a7cc-d0aa5064aec7](https://github.com/user-attachments/assets/0adbec33-1373-4cf4-b67d-825f7baf1cb4)
 
